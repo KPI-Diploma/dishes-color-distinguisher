@@ -6,7 +6,21 @@ import pandas as pd
 
 
 def main():
-    generate_training_data()
+    format_training_data()
+
+
+def format_training_data():
+    df = pd.read_csv('color_dataset.csv')
+
+    # Apply the conversion function to the color columns
+    df['color1'] = df['color1'].apply(hex_to_number)
+    df['color2'] = df['color2'].apply(hex_to_number)
+    df['color3'] = df['color3'].apply(hex_to_number)
+    df['color4'] = df['color4'].apply(hex_to_number)
+    df['color5'] = df['color5'].apply(hex_to_number)
+
+    # Save the updated DataFrame to a new CSV file
+    df.to_csv('color_dataset_formatted.csv', index=False)
 
 
 def generate_training_data():
@@ -66,6 +80,10 @@ def transform_data(file):
             print(food, colors)
 
     return x, y
+
+
+def hex_to_number(color):
+    return int(color[1:], 16)
 
 
 if __name__ == '__main__':
