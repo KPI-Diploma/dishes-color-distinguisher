@@ -1,26 +1,72 @@
-import os
-from sklearn.cluster import KMeans
-import cv2
 import json
+import os
+import pickle
+
+import cv2
+import numpy as np
 import pandas as pd
+from keras import Sequential
+from keras.layers import Dense, Flatten
+from keras.models import load_model
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import LabelEncoder
 
 
 def main():
-    format_training_data()
+    run_model(['#A1B2C3', '#D4C12A', '#FDAA22', '#33BBBD', '#BBDDAC'])
 
 
-def format_training_data():
+def run_model(colors):
+    model = load_model('my_model.h5')
+
+    with open('label_encoder.pkl', 'rb') as f:
+        le = pickle.load(f)
+
+    colors = [hex_to_rgb(color) for color in colors]
+    colors = np.array(colors).reshape(1, 5, 3)
+
+    prediction = model.predict(colors)
+
+    top_10 = np.argsort(prediction[0])[-10:]
+
+    for i in reversed(top_10):
+        print(le.classes_[i])
+
+
+def create_model():
     df = pd.read_csv('color_dataset.csv')
 
-    # Apply the conversion function to the color columns
-    df['color1'] = df['color1'].apply(hex_to_number)
-    df['color2'] = df['color2'].apply(hex_to_number)
-    df['color3'] = df['color3'].apply(hex_to_number)
-    df['color4'] = df['color4'].apply(hex_to_number)
-    df['color5'] = df['color5'].apply(hex_to_number)
+    X = []
 
-    # Save the updated DataFrame to a new CSV file
-    df.to_csv('color_dataset_formatted.csv', index=False)
+    for _, row in df.iterrows():
+        rgb_colors = []
+        for i in range(1, 6):
+            rgb_colors.append(hex_to_rgb(row[f'color{i}']))
+        X.append(rgb_colors)
+
+    X = np.array(X)
+
+    y = df['class']
+
+    le = LabelEncoder()
+    y = le.fit_transform(y)
+
+    X_train, y_train = X, y
+
+    model = Sequential()
+    model.add(Flatten(input_shape=(5, 3)))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(64, activation='relu'))
+    model.add(Dense(len(le.classes_), activation='softmax'))
+
+    model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    model.fit(X_train, y_train, epochs=50, batch_size=16)
+
+    model.save('my_model.h5')
+
+    with open('label_encoder.pkl', 'wb') as f:
+        pickle.dump(le, f)
 
 
 def generate_training_data():
@@ -30,8 +76,7 @@ def generate_training_data():
     with open('meta/train.json', 'r') as f:
         train_data = json.load(f)
 
-    x = []
-    y = []
+    df = pd.DataFrame(columns=['color1', 'color2', 'color3', 'color4', 'color5', 'class'])
 
     for class_name in classes:
         print(f"Processing {class_name} images...")
@@ -39,17 +84,13 @@ def generate_training_data():
         for image_path in image_paths:
             full_image_path = os.path.join('images', f"{image_path}.jpg")
             colors = get_image_colors(full_image_path, 5)
-            x.append(colors)
-            y.append(class_name)
-
-    df = pd.DataFrame(x, columns=['color1', 'color2', 'color3', 'color4', 'color5'])
-    df['class'] = y
-    df.to_csv('color_dataset.csv', index=False)
+            df = df.append({'color1': colors[0], 'color2': colors[1], 'color3': colors[2],
+                            'color4': colors[3], 'color5': colors[4], 'class': class_name}, ignore_index=True)
+            df.to_csv('color_dataset.csv', index=False)
 
 
 def get_image_colors(img_path, n_colors):
     image = cv2.imread(img_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     pixels = image.reshape(-1, 3)
 
     kmeans = KMeans(n_clusters=n_colors)
@@ -82,8 +123,9 @@ def transform_data(file):
     return x, y
 
 
-def hex_to_number(color):
-    return int(color[1:], 16)
+def hex_to_rgb(hex_color):
+    hex_color = hex_color.lstrip('#')
+    return [int(hex_color[i:i + 2], 16) for i in range(0, len(hex_color), 2)]
 
 
 if __name__ == '__main__':
