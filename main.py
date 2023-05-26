@@ -27,6 +27,8 @@ def run_model(colors):
 
     prediction = model.predict(colors)
 
+    print(prediction)
+
     top_10 = np.argsort(prediction[0])[-10:]
 
     for i in reversed(top_10):
@@ -76,7 +78,8 @@ def generate_training_data():
     with open('meta/train.json', 'r') as f:
         train_data = json.load(f)
 
-    df = pd.DataFrame(columns=['color1', 'color2', 'color3', 'color4', 'color5', 'class'])
+    x = []
+    y = []
 
     for class_name in classes:
         print(f"Processing {class_name} images...")
@@ -84,8 +87,10 @@ def generate_training_data():
         for image_path in image_paths:
             full_image_path = os.path.join('images', f"{image_path}.jpg")
             colors = get_image_colors(full_image_path, 5)
-            df = df.append({'color1': colors[0], 'color2': colors[1], 'color3': colors[2],
-                            'color4': colors[3], 'color5': colors[4], 'class': class_name}, ignore_index=True)
+            x.append(colors)
+            y.append(class_name)
+            df = pd.DataFrame(x, columns=['color1', 'color2', 'color3', 'color4', 'color5'])
+            df['class'] = y
             df.to_csv('color_dataset.csv', index=False)
 
 
