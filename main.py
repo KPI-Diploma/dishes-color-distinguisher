@@ -14,8 +14,8 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def main():
-    create_model()
-    # run_model(['#ffffff', '#ffffff', '#ffffff'])
+    result = run_model(['#a79156', '#816c3c', '#c7b476'])
+    print(result)
 
 
 def run_model(colors):
@@ -29,9 +29,11 @@ def run_model(colors):
     colors_rgb = [hex_to_rgb(color) for color in colors]
     colors_flat = [component for color in colors_rgb for component in color]
 
-    input_df = pd.DataFrame([colors_flat],
-                            columns=['color1_r', 'color1_g', 'color1_b', 'color2_r', 'color2_g', 'color2_b', 'color3_r',
-                                     'color3_g', 'color3_b'])
+    input_df = pd.DataFrame([colors_flat], columns=[
+        'color1_r', 'color1_g', 'color1_b',
+        'color2_r', 'color2_g', 'color2_b',
+        'color3_r', 'color3_g', 'color3_b'
+    ])
 
     predictions = model.predict(input_df.values)[0]
     top_10_indices = np.argsort(predictions)[::-1][:10]
@@ -54,15 +56,20 @@ def create_model():
     classes = le.fit_transform(df['class'])
 
     model = Sequential()
-    model.add(Dense(16, input_dim=colors_df.shape[1], activation='relu'))
-    model.add(Dense(32, activation='relu'))
+    model.add(Dense(64, input_dim=colors_df.shape[1], activation='relu'))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(128, activation='relu'))
+    model.add(Dense(256, activation='relu'))
+    model.add(Dense(256, activation='relu'))
     model.add(Dense(len(le.classes_), activation='softmax'))
 
+    adam = Adam(learning_rate=0.001)
+
     model.compile(loss='sparse_categorical_crossentropy',
-                  optimizer=Adam(),
+                  optimizer=adam,
                   metrics=['accuracy'])
 
-    model.fit(colors_df.values, classes, epochs=50, batch_size=32)
+    model.fit(colors_df.values, classes, epochs=100, batch_size=32)
 
     model.save('model.h5')
 
@@ -109,7 +116,7 @@ def get_image_colors(img_path, n_colors):
 
 
 def hex_to_rgb(hex_color):
-    return [int(hex_color[i:i+2], 16) / 255.0 for i in (1, 3, 5)]
+    return [int(hex_color[i:i + 2], 16) / 255.0 for i in (1, 3, 5)]
 
 
 if __name__ == '__main__':
