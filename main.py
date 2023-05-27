@@ -13,7 +13,7 @@ from sklearn.preprocessing import LabelEncoder
 
 
 def main():
-    run_model(['#A1B2C3', '#D4C12A', '#FDAA22', '#33BBBD', '#BBDDAC'])
+    generate_training_data()
 
 
 def run_model(colors):
@@ -23,7 +23,7 @@ def run_model(colors):
         le = pickle.load(f)
 
     colors = [hex_to_rgb(color) for color in colors]
-    colors = np.array(colors).reshape(1, 5, 3)
+    colors = np.array(colors).reshape(1, 3, 3)
 
     prediction = model.predict(colors)
 
@@ -56,7 +56,7 @@ def create_model():
     X_train, y_train = X, y
 
     model = Sequential()
-    model.add(Flatten(input_shape=(5, 3)))
+    model.add(Flatten(input_shape=(3, 3)))
     model.add(Dense(128, activation='relu'))
     model.add(Dense(64, activation='relu'))
     model.add(Dense(len(le.classes_), activation='softmax'))
@@ -86,10 +86,10 @@ def generate_training_data():
         image_paths = train_data[class_name]
         for image_path in image_paths:
             full_image_path = os.path.join('images', f"{image_path}.jpg")
-            colors = get_image_colors(full_image_path, 5)
+            colors = get_image_colors(full_image_path, 3)
             x.append(colors)
             y.append(class_name)
-            df = pd.DataFrame(x, columns=['color1', 'color2', 'color3', 'color4', 'color5'])
+            df = pd.DataFrame(x, columns=['color1', 'color2', 'color3'])
             df['class'] = y
             df.to_csv('color_dataset.csv', index=False)
 
@@ -106,26 +106,6 @@ def get_image_colors(img_path, n_colors):
     hex_colors = ['#{:02x}{:02x}{:02x}'.format(int(c[2]), int(c[1]), int(c[0])) for c in colors]
 
     return hex_colors
-
-
-def transform_data(file):
-    with open('meta/' + file, 'r') as f:
-        train_data = json.load(f)
-
-    x = []
-    y = []
-
-    for food, images in train_data.items():
-        for img_path in images:
-            img_path = f'images/{img_path}.jpg'
-            colors = get_image_colors(img_path, 5)
-
-            x.append(colors)
-            y.append(food)
-
-            print(food, colors)
-
-    return x, y
 
 
 def hex_to_rgb(hex_color):
